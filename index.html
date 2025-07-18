@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Science Quiz</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the Inter font and general body styling */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5; /* Light gray background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh; /* Full viewport height */
+            margin: 0;
+            padding: 20px; /* Add some padding for smaller screens */
+            box-sizing: border-box; /* Include padding in element's total width and height */
+        }
+        /* Ensure the quiz container takes full width on small screens */
+        .quiz-container {
+            width: 100%;
+            max-width: 600px; /* Max width for larger screens */
+        }
+        /* Style for answer buttons when selected */
+        .answer-button.selected {
+            background-color: #60a5fa; /* Blue-500 */
+            color: white;
+            border-color: #3b82f6; /* Blue-600 */
+        }
+        /* Style for correct answer */
+        .answer-button.correct {
+            background-color: #34d399; /* Green-400 */
+            color: white;
+            border-color: #10b981; /* Green-500 */
+        }
+        /* Style for incorrect answer */
+        .answer-button.incorrect {
+            background-color: #ef4444; /* Red-500 */
+            color: white;
+            border-color: #dc2626; /* Red-600 */
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div id="quiz-app" class="quiz-container bg-white p-8 rounded-xl shadow-2xl flex flex-col items-center">
+        <h1 class="text-4xl font-extrabold text-gray-800 mb-8 text-center">🧠 Fun Science Quiz! 🚀</h1>
+
+        <!-- Question Display Area -->
+        <div id="question-container" class="w-full mb-6">
+            <p id="question-text" class="text-2xl font-semibold text-gray-700 text-center mb-6"></p>
+            <div id="answer-buttons" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Answer buttons will be dynamically inserted here by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Navigation and Score Area -->
+        <div id="controls-container" class="w-full flex justify-between items-center mt-6">
+            <button id="next-button" class="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold py-3 px-8 rounded-full shadow-lg transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-300">
+                Next Question
+            </button>
+            <p id="score-display" class="text-xl font-bold text-gray-800">Score: 0</p>
+        </div>
+
+        <!-- Quiz End Screen -->
+        <div id="quiz-end-container" class="hidden text-center w-full">
+            <h2 class="text-3xl font-extrabold text-green-600 mb-4">Quiz Completed! 🎉 <img src="download(1),jpg" alt="Keep it up!"></h2>
+            <p id="final-score-text" class="text-2xl font-semibold text-gray-700 mb-6"></p>
+        </div>
+    </div>
+
+    <script>
+        // --- Quiz Data ---
+        // Array of quiz questions. Each object contains a question string and an array of answer objects.
+        // Each answer object has 'text' for the answer display and 'correct' (boolean) to indicate if it's the right answer.
+        const quizQuestions = [
+            {
+                question: "What is Hooke's Law?",
+                answers: [
+                    { text: "k=fx", correct: false },
+                    { text: "f=kx", correct: true },
+                    { text: "x=kf", correct: false },
+                    { text: "k=xf", correct: false }
+                ]
+            },
+            {
+                question: "Name one way energy can be transferred.",
+                answers: [
+                    { text: "Mechanical", correct: true },
+                    { text: "Aquatic", correct: false },
+                    { text: "Gametical", correct: false },
+                    { text: "Molicalistic", correct: false }
+                ]
+            },
+            {
+                question: "What is the positively charged particle in an atom?",
+                answers: [
+                    { text: "Electron", correct: false },
+                    { text: "Nucleus", correct: false },
+                    { text: "Proton", correct: true },
+                    { text: "Neutron", correct: false }
+                ]
+            },
+            {
+                question: "What was ekascillion renamed to?",
+                answers: [
+                    { text: "Uranium", correct: false },
+                    { text: "Francium ", correct: false },
+                    { text: "Germaniam", correct: false },
+                    { text: "Oganesson", correct: true }
+                ]
+            },
+            {
+                question: "What is the heaviest atom",
+                answers: [
+                    { text: "Oganesson (Og)", correct: false },
+                    { text: "Helium (He)", correct: false },
+                    { text: "Hassium (Hs)", correct: true },
+                    { text: "Dysprosium (Dy)", correct: false }
+                ]
+            },
+            {
+                question: "What colour is the flame produced by potassium in water?",
+                answers: [
+                    { text: "Red", correct: false },
+                    { text: "Yellow", correct: false },
+                    { text: "Blue", correct: false },
+                    { text: "Lilac", correct: true }
+                ]
+            },
+            {
+                question: "What is the orthodox gravitational constant?",
+            answers: [
+                { text: "9.807", correct: false },
+                { text: "9.81", correct: false },
+                { text: "9.8", correct: true },
+                { text: "10", correct: false }
+            ]
+        }
+        ];
+        
+        const questionTextElement = document.getElementById('question-text');
+        const answerButtonsContainerElement = document.getElementById('answer-buttons');
+        const nextButtonElement = document.getElementById('next-button');
+        const scoreDisplayElement = document.getElementById('score-display');
+        const quizEndContainerElement = document.getElementById('quiz-end-container');
+        const finalScoreTextElement = document.getElementById('final-score-text');
+        const controlsContainerElement = document.getElementById('controls-container');
+        const questionContainerElement = document.getElementById('question-container');
+
+        // --- Quiz State Variables ---
+        // These variables keep track of the quiz's current status.
+        let currentQuestionIndex = 0; // Tracks which question is currently being displayed.
+        let userScore = 0;           // Stores the user's current score.
+        let selectedAnswerButton = null; // Stores a reference to the button the user has clicked as their answer.
+
+        // --- Quiz Functions ---
+
+        /**
+         * Initializes and starts the quiz.
+         * Resets the score and question index, then displays the first question.
+         */
+        function startQuiz() {
+            currentQuestionIndex = 0;
+            userScore = 0;
+            scoreDisplayElement.textContent = `Score: ${userScore}`; // Update score display
+            nextButtonElement.textContent = "Submit Answer"; // Set initial button text
+            nextButtonElement.style.display = 'none'; // Hide submit button until an answer is selected
+            controlsContainerElement.style.display = 'flex'; // Ensure controls are visible
+            questionContainerElement.style.display = 'block'; // Ensure question container is visible
+            quizEndContainerElement.classList.add('hidden'); // Hide the quiz end screen
+            showQuestion(); // Display the first question
+        }
+
+        /**
+         * Displays the current question and its answer options.
+         * Clears previous answers and dynamically creates new buttons for the current question.
+         */
+        function showQuestion() {
+            resetAnswerButtons(); // Clear previous answer buttons and styling
+
+            const currentQuestion = quizQuestions[currentQuestionIndex];
+            questionTextElement.textContent = currentQuestion.question; // Set the question text
+
+            // Create a button for each answer option
+            currentQuestion.answers.forEach(answer => {
+                const button = document.createElement('button');
+                button.textContent = answer.text; // Set button text to the answer
+                button.classList.add(
+                    'answer-button',
+                    'w-full', 'py-3', 'px-6', 'bg-blue-100', 'text-blue-800', 'font-semibold',
+                    'rounded-lg', 'shadow-md', 'hover:bg-blue-200', 'transition', 'duration-200',
+                    'ease-in-out', 'transform', 'hover:scale-105', 'text-left', 'focus:outline-none',
+                    'focus:ring-2', 'focus:ring-blue-400', 'focus:ring-opacity-75', 'border', 'border-blue-300'
+                );
+                // Store whether this answer is correct using a data attribute
+                if (answer.correct) {
+                    button.dataset.correct = true;
+                }
+                // Add an event listener to handle when this button is clicked
+                button.addEventListener('click', handleAnswerSelection);
+                answerButtonsContainerElement.appendChild(button); // Add the button to the container
+            });
+        }
+
+        /**
+         * Clears all existing answer buttons from the container and resets the selected button state.
+         * This prepares the container for the next question's answers.
+         */
+        function resetAnswerButtons() {
+            selectedAnswerButton = null; // No answer is selected initially for a new question
+            // Remove all child elements (answer buttons) from the answer buttons container
+            while (answerButtonsContainerElement.firstChild) {
+                answerButtonsContainerElement.removeChild(answerButtonsContainerElement.firstChild);
+            }
+        }
+
+        /**
+         * Handles the click event when a user selects an answer button.
+         * Applies 'selected' styling and makes the 'Submit Answer' button visible.
+         * @param {Event} event - The click event object.
+         */
+        function handleAnswerSelection(event) {
+            const clickedButton = event.target;
+
+            // If an answer was previously selected, remove its 'selected' class
+            if (selectedAnswerButton) {
+                selectedAnswerButton.classList.remove('selected');
+            }
+
+            // Mark the newly clicked button as 'selected'
+            clickedButton.classList.add('selected');
+            selectedAnswerButton = clickedButton; // Update the reference to the currently selected button
+
+            nextButtonElement.style.display = 'block'; // Show the "Submit Answer" button
+            nextButtonElement.textContent = "Submit Answer"; // Ensure button text is "Submit Answer"
+            // Ensure the next button's event listener is set to check the answer
+            nextButtonElement.removeEventListener('click', moveToNextQuestion); // Remove if already set
+            nextButtonElement.addEventListener('click', checkSelectedAnswer);
+        }
+
+        /**
+         * Checks the user's selected answer against the correct answer.
+         * Updates the score and applies visual feedback (correct/incorrect styling).
+         * Disables all answer buttons after submission.
+         */
+        function checkSelectedAnswer() {
+            // If no answer is selected when "Submit Answer" is clicked, do nothing.
+            if (!selectedAnswerButton) {
+                return;
+            }
+
+            const isCorrect = selectedAnswerButton.dataset.correct === 'true';
+
+            // Iterate over all answer buttons to apply correct/incorrect styling
+            Array.from(answerButtonsContainerElement.children).forEach(button => {
+                // If the button is the correct answer, add 'correct' class
+                if (button.dataset.correct === 'true') {
+                    button.classList.add('correct');
+                }
+                // Disable all buttons to prevent further changes after submission
+                button.disabled = true;
+            });
+
+            // If the selected answer was correct, increment the score
+            if (isCorrect) {
+                userScore++;
+                scoreDisplayElement.textContent = `Score: ${userScore}`;
+            } else {
+                // If the selected answer was incorrect, add 'incorrect' class to it
+                selectedAnswerButton.classList.add('incorrect');
+            }
+
+            // Change the button text to "Next Question" and prepare for the next step
+            nextButtonElement.textContent = "Next Question";
+            // Switch the event listener for the next button to move to the next question
+            nextButtonElement.removeEventListener('click', checkSelectedAnswer);
+            nextButtonElement.addEventListener('click', moveToNextQuestion);
+        }
+
+        /**
+         * Advances the quiz to the next question or ends the quiz if all questions are answered.
+         */
+        function moveToNextQuestion() {
+            currentQuestionIndex++; // Move to the next question in the array
+
+            // Check if there are more questions remaining
+            if (currentQuestionIndex < quizQuestions.length) {
+                showQuestion(); // Display the next question
+                // Reset the next button's listener to check the answer for the new question
+                nextButtonElement.removeEventListener('click', moveToNextQuestion);
+                nextButtonElement.addEventListener('click', checkSelectedAnswer);
+            } else {
+                // If no more questions, show the final score
+                displayFinalScore();
+            }
+        }
+
+        /**
+         * Displays the final score screen.
+         * Hides the question and controls, and shows the quiz completion message.
+         */
+        function displayFinalScore() {
+            resetAnswerButtons(); // Clear any remaining answer buttons
+            questionTextElement.textContent = ""; // Clear the question text
+            controlsContainerElement.style.display = 'none'; // Hide the next button and score
+            questionContainerElement.style.display = 'none'; // Hide the question container
+
+            quizEndContainerElement.classList.remove('hidden'); // Show the quiz end screen
+            finalScoreTextElement.textContent = `You scored ${userScore} out of ${quizQuestions.length}!`; // Display final score
+        }
+
+        // --- Event Listeners Initialization ---
+        // This ensures the quiz starts and buttons respond correctly when the page loads.
+
+        // Initial setup for the next button: it will check the answer when clicked.
+        nextButtonElement.addEventListener('click', checkSelectedAnswer);
+
+        
+
+        // Start the quiz automatically once the entire HTML document has been loaded and parsed.
+        document.addEventListener('DOMContentLoaded', startQuiz);
+    </script>
+</body>
+</html>
